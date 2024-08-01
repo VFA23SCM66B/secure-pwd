@@ -3,9 +3,9 @@ import { Model } from 'sequelize';
 
 export default (sequelize, DataTypes) => {
   class User extends Model {
-    static associate(models) {
-      User.hasMany(models.UserPassword, { foreignKey: 'ownerUserId' });
-    }
+    // static associate(models) {
+    //   User.hasMany(models.UserPassword, { foreignKey: 'ownerUserId' });
+    // }
   }
   User.init({
     name: DataTypes.STRING,
