@@ -50,34 +50,34 @@ app.post('/signup', async (req, res, next) => {
     }
 });
 
-// app.post('/login', async (req, res, next) => {
-//     const { email, password } = req.body;
-//     const modelsObj = await models.default;
-//     try {
-//         const userRecord = await modelsObj.User.findOne({
-//             attributes: ['password', 'name', 'id'], where: { email }
-//         });
-//         if (!userRecord) {
-//             res.status(403);
-//             return res.json({message: "Invalid email or password", "sys_message": "invalid_email_password"});
-//         }
-//         const matched = await bcrypt.compare(password, userRecord.password);
-//         if (matched) {
-//             const token = jwt.default.sign({user_id: userRecord.id}, process.env.JWT_SECRET,
-//                 {algorithm: "HS256", expiresIn: "1h"}
-//             );
-//             res.json({
-//                 messages: "Login is successful", "sys_message": "login_success", token, name: userRecord.name
-//             });
-//             return;
-//         }
-//         res.status(403);
-//         res.json({message: "Invalid email or password", "sys_message": "login_failed"});
-//     } catch (e) {
-//         res.status(403);
-//         res.json({ message: e.message })
-//     }
-// });
+app.post('/login', async (req, res, next) => {
+    const { email, password } = req.body;
+    const modelsObj = await models.default;
+    try {
+        const userRecord = await modelsObj.User.findOne({
+            attributes: ['password', 'name', 'id'], where: { email }
+        });
+        if (!userRecord) {
+            res.status(403);
+            return res.json({message: "Invalid email or password", "sys_message": "invalid_email_password"});
+        }
+        const matched = await bcrypt.compare(password, userRecord.password);
+        if (matched) {
+            const token = jwt.default.sign({user_id: userRecord.id}, process.env.JWT_SECRET,
+                {algorithm: "HS256", expiresIn: "1h"}
+            );
+            res.json({
+                messages: "Login is successful", "sys_message": "login_success", token, name: userRecord.name
+            });
+            return;
+        }
+        res.status(403);
+        res.json({message: "Invalid email or password", "sys_message": "login_failed"});
+    } catch (e) {
+        res.status(403);
+        res.json({ message: e.message })
+    }
+});
 
 // // label, url, username/email, password, password_encryption_key, jwt_token
 
