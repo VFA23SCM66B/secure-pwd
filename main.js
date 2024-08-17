@@ -8,6 +8,8 @@ import { expressjwt } from 'express-jwt';
 import crypto from 'crypto';
 import * as models from './models/index.js';
 import configOptions from './config/config.js';
+import nodemailer from 'nodemailer';
+import rateLimit from 'express-rate-limit';
 
 const app = express();
 const environment = process.env.NODE_ENV || 'production';
@@ -35,209 +37,317 @@ app.use(
     }).unless({ path: ['/login', '/signup', '/'] })
 );
 
-// Signup route
+// Signup API
 app.post('/signup', async (req, res) => {
-    const { email, password, encryption_key, name } = req.body;
-    const { User } = await models.default;
+    const { name, email, encryption_key, password } = req.body;
 
     try {
-        const userExists = await User.findOne({ attributes: ['id'], where: { email } });
-        if (userExists) {
-            return res.status(400).json({ message: 'This email already exists', sys_message: 'email_exists' });
+        // Check if the user already exists
+        const existingUser = await User.findOne({ where: { email } });
+        if (existingUser) {
+            return res.status(409).json({ error: 'Email is already registered.' });
         }
 
-        const hashedPassword = await hashStr(password);
-        const hashedEncryptionKey = await hashStr(encryption_key);
+        // Hash the password and encryption key
+        const hashedPassword = await bcrypt.hash(password, 10);
+        const hashedEncryptionKey = await bcrypt.hash(encryption_key, 10);
 
-        await User.create({
+        // Create and save the new user
+        const newUser = await User.create({
+            name,
             email,
             password: hashedPassword,
             encryption_key: hashedEncryptionKey,
-            name,
         });
 
-        res.json({ message: 'Signup is successful' });
-    } catch (err) {
-        res.status(403).json({ message: err.message });
+        // Respond with success message and user data
+        return res.status(201).json({
+            message: 'User successfully registered.',
+            user: {
+                id: newUser.id,
+                name: newUser.name,
+                email: newUser.email,
+                createdAt: newUser.createdAt,
+                updatedAt: newUser.updatedAt,
+            },
+        });
+    } catch (error) {
+        console.error('Error during user registration:', error);
+        return res.status(500).json({
+            error: 'An error occurred while registering the user. Please try again later.',
+        });
     }
 });
 
-// Login route
+// Login API
 app.post('/login', async (req, res) => {
     const { email, password } = req.body;
-    const { User } = await models.default;
 
     try {
-        const user = await User.findOne({ attributes: ['password', 'name', 'id'], where: { email } });
+        // Check if the user exists
+        const user = await User.findOne({ where: { email } });
         if (!user) {
-            return res.status(403).json({ message: 'Invalid email or password', sys_message: 'invalid_email_password' });
+            return res.status(404).json({ error: 'User not found. Please sign up.' });
         }
 
-        const isPasswordCorrect = await bcrypt.compare(password, user.password);
-        if (isPasswordCorrect) {
-            const token = jwt.sign({ user_id: user.id }, process.env.JWT_SECRET, {
-                algorithm: 'HS256',
-                expiresIn: '1h',
-            });
-            res.json({
-                message: 'Login is successful',
-                sys_message: 'login_success',
-                token,
-                name: user.name,
-            });
-        } else {
-            res.status(403).json({ message: 'Invalid email or password', sys_message: 'login_failed' });
+        // Compare the provided password with the stored hashed password
+        const isPasswordValid = await bcrypt.compare(password, user.password);
+        if (!isPasswordValid) {
+            return res.status(401).json({ error: 'Invalid password. Please try again.' });
         }
-    } catch (err) {
-        res.status(403).json({ message: err.message });
+
+        // Generate JWT token
+        const token = jwt.sign(
+            {
+                id: user.id,
+                name: user.name,
+                email: user.email,
+            },
+            process.env.JWT_SECRET,
+            { expiresIn: '1h' } // Token expires in 1 hour
+        );
+
+        // Respond with the token and a success message
+        return res.status(200).json({
+            message: `Hi ${user.name}, you have successfully logged in.`,
+            sysMessage: `Welcome back, ${user.name}!`,
+            token: token,
+        });
+    } catch (error) {
+        console.error('Error during login:', error);
+        return res.status(500).json({
+            error: 'An error occurred during login. Please try again later.',
+        });
     }
 });
 // label, url, username/email, password, password_encryption_key, jwt_token
-
-app.post('/passwords/save', async (req, res, next) => {
+// Password Save API
+app.post('/passwords/save', async (req, res) => {
     const { url, username, password, encryption_key, label } = req.body;
-    const userId = req.auth.user_id;
-    const modelsObj = await models.default;
-    const userRecord = await modelsObj.User.findOne({
-        attributes: ['encryption_key'], where: { id: userId }
-    });
-    if (!userRecord) {
-        res.status(403);
-        return res.json({message: 'Unable to find the account'});
-    }
-    const matched = await bcrypt.compare(encryption_key, userRecord.encryption_key);
-    if (!matched) {
-        res.status(400);
-        return res.json({message: 'Incorrect encryption key'});
-    }
-    if (!(username && password && url)) {
-        res.status(400);
-        return res.json({message: 'Missing parameters'});
-    }
-    const encryptedUsername = encrypt(username, encryption_key);
-    const encryptedPassword = encrypt(password, encryption_key);
-    const result = await modelsObj.UserPassword.create({
-        ownerUserId: userId, password: encryptedPassword, username: encryptedUsername, url, label
-    });
-    // users_passwords id, owner_user_id, url, username, password, shared_by_user_id, created_at, updated_at
-    res.status(200);
-    res.json({message: 'Password is saved'});
-});
 
-app.post('/passwords/list', async (req, res, next) => {
-    const userId = req.auth.user_id;
-    const encryptionKey = req.body.encryption_key;
-    const modelsObj = await models.default;
-    let passwords = await modelsObj.UserPassword.findAll({
-        attributes: ['id', 'url', 'username', 'password', 'label', 'weak_encryption'], where: { ownerUserId: userId }
-    });
-    const userRecord = await modelsObj.User.findOne({
-        attributes: ['encryption_key'], where: { id: userId }
-    });
-    const matched = await bcrypt.compare(encryptionKey, userRecord.encryption_key);
-    if (!matched) {
-        res.status(400);
-        return res.json({message: 'Incorrect encryption key'});
-    }
-    const passwordsArr = [];
-    for (let i = 0; i < passwords.length; i++) {
-        const element = passwords[i];
-        if (element.weak_encryption) {
-            const decryptedPassword = decrypt(element.password, userRecord.encryption_key);// decrypted with encryption key hash
-            const decryptedUserName = decrypt(element.username, userRecord.encryption_key);
-            element.password = encrypt(decryptedPassword, encryptionKey);// re-encrypted with actual encryption key
-            element.username = encrypt(decryptedUserName, encryptionKey);
-            element.weak_encryption = false;
-            await element.save();// save
+    try {
+        // Validate required fields
+        if (!url || !username || !password || !encryption_key || !label) {
+            return res.status(400).json({
+                error: 'All fields (url, username, password, encryption_key, label) are required.',
+            });
         }
-        element.password = decrypt(element.password, encryptionKey);
-        element.username = decrypt(element.username, encryptionKey);
-        passwordsArr.push(element);
+
+        // Extract user ID from JWT token (assuming the user is authenticated)
+        const token = req.headers.authorization.split(' ')[1];
+        const decodedToken = jwt.verify(token, process.env.JWT_SECRET);
+        const userId = decodedToken.id;
+
+        // Get the user record based on user ID
+        const user = await User.findByPk(userId);
+        if (!user) {
+            return res.status(404).json({ error: 'User not found.' });
+        }
+
+        // Validate the encryption key
+        const isEncryptionKeyValid = await bcrypt.compare(encryption_key, user.encryption_key);
+        if (!isEncryptionKeyValid) {
+            return res.status(401).json({ error: 'Invalid encryption key.' });
+        }
+
+        // Encrypt the username and password with the provided encryption key using AES-256-GCM
+        const encryptedUsername = encryptData(username, encryption_key);
+        const encryptedPassword = encryptData(password, encryption_key);
+
+        // Save the encrypted credentials and other details in the database
+        const savedPassword = await UserPassword.create({
+            userId,
+            url,
+            username: encryptedUsername,
+            password: encryptedPassword,
+            label,
+        });
+
+        return res.status(201).json({
+            message: 'Password saved successfully.',
+            savedPassword,
+        });
+    } catch (error) {
+        console.error('Error saving password:', error);
+        return res.status(500).json({
+            error: 'An error occurred while saving the password. Please try again later.',
+        });
     }
-    res.status(200);
-    res.json({message: 'Success', data: passwordsArr});
+});
+// Password List API
+app.get('/passwords/list', authenticateToken, async (req, res) => {
+    const { encryption_key } = req.body;
+
+    if (!encryption_key) {
+        return res.status(400).json({ error: 'Encryption key is required.' });
+    }
+
+    try {
+        const userId = req.user.id;
+
+        // Retrieve the user record based on user ID
+        const user = await User.findByPk(userId);
+        if (!user) {
+            return res.status(404).json({ error: 'User not found.' });
+        }
+
+        // Validate the provided encryption key
+        const isEncryptionKeyValid = await bcrypt.compare(encryption_key, user.encryption_key);
+        if (!isEncryptionKeyValid) {
+            return res.status(400).json({ error: 'Incorrect encryption key.' });
+        }
+
+        // Retrieve password records for the authenticated user
+        const userPasswords = await UserPassword.findAll({
+            where: { userId },
+        });
+
+        // Process and decrypt passwords
+        const passwordsArr = await Promise.all(userPasswords.map(async (record) => {
+            let decryptedUsername, decryptedPassword;
+
+            if (record.weak_encryption) {
+                // Decrypt with the old key
+                decryptedUsername = decryptData(record.username, user.encryption_key);
+                decryptedPassword = decryptData(record.password, user.encryption_key);
+
+                // Re-encrypt with the new key and update status
+                const newEncryptedUsername = encryptData(decryptedUsername, encryption_key);
+                const newEncryptedPassword = encryptData(decryptedPassword, encryption_key);
+
+                await record.update({
+                    username: newEncryptedUsername,
+                    password: newEncryptedPassword,
+                    weak_encryption: false, // Update encryption status
+                });
+            } else {
+                // Decrypt with the new key
+                decryptedUsername = decryptData(record.username, encryption_key);
+                decryptedPassword = decryptData(record.password, encryption_key);
+            }
+
+            // Check expiry date
+            const isExpired = record.expiry_date && new Date() > new Date(record.expiry_date);
+
+            return {
+                url: record.url,
+                username: decryptedUsername,
+                password: decryptedPassword,
+                label: record.label,
+                isExpired,
+            };
+        }));
+
+        return res.status(200).json({
+            message: 'Passwords retrieved successfully.',
+            passwords: passwordsArr,
+        });
+    } catch (error) {
+        console.error('Error retrieving passwords:', error);
+        return res.status(500).json({
+            error: 'An error occurred while retrieving the passwords. Please try again later.',
+        });
+    }
 });
 
-// app.post('/passwords/share-password', async (req, res, next) => {
-//     try {
-//         const {password_id, encryption_key, email} = req.body;
-//         const userId = req.auth.user_id;
-//         const modelsObj = await models.default;
-//         const passwordRow = await modelsObj.UserPassword.findOne({
-//             attributes: ['label', 'url', 'username', 'password'], where: { id: password_id, ownerUserId: userId}
-//         });
-//         if (!passwordRow) {
-//             res.status(400);
-//             return res.json({message: 'Incorrect password_id'});
-//         }
-//         const userRecord = await modelsObj.User.findOne({
-//             attributes: ['encryption_key'], where: { id: userId }
-//         });
-//         const matched = await bcrypt.compare(encryption_key, userRecord.encryption_key);
-//         if (!matched) {
-//             res.status(400);
-//             return res.json({message: 'Incorrect encryption key'});
-//         }
-//         const shareUserObj = await modelsObj.User.findOne({attributes: ['id', 'encryption_key'], where: { email } });
-//         if (!shareUserObj) {
-//             res.status(400);
-//             return res.json({message: 'User with whom you want to share password does not exist'});
-//         }
-//         const existingSharedPassword = await modelsObj.UserPassword.findOne({
-//             attributes: ['id'], where: { source_password_id: password_id, ownerUserId: shareUserObj.id}
-//         });
-//         if (existingSharedPassword) {
-//             res.status(400);
-//             return res.json({message: `This password is already shared with the user`});
-//         }
-//         const decryptedUserName = decrypt(passwordRow.username, encryption_key);
-//         const encryptedSharedUserName = encrypt(decryptedUserName, shareUserObj.encryption_key);// encrypting with hash of share user encryption key
-//         const decryptedPassword = decrypt(passwordRow.password, encryption_key);
-//         const encryptedSharedPassword = encrypt(decryptedPassword, shareUserObj.encryption_key);
-//         const newPassword = {
-//             ownerUserId: shareUserObj.id,
-//             label: passwordRow.label,
-//             url: passwordRow.url,
-//             username: encryptedSharedUserName,
-//             password: encryptedSharedPassword,
-//             sharedByUserId: userId,
-//             weak_encryption: true,
-//             source_password_id: password_id
-//         };
-//         await modelsObj.UserPassword.create(newPassword);
-//         return res.json({message: 'Password shared successfully'});
-//     } catch (e) {
-//         console.error(e);
-//         res.status(500);
-//         // todo log error in logging library.
-//         return res.json({message: 'An error occurred.'})
-//     }
-// });
+app.post('/passwords/share-password', authenticateToken, sharePasswordLimiter, async (req, res) => {
+    const { password_id, encryption_key, email, expiry_date } = req.body;
 
-// function encrypt(unenrypted_string, key) {
-//     const algorithm = 'aes-256-ctr';
-//     const iv = crypto.randomBytes(16);
-//     const encKey = crypto.createHash('sha256').update(String(key)).digest('base64').slice(0, 32)
-//     const cipher = crypto.createCipheriv(algorithm, encKey, iv);
-//     let crypted = cipher.update(unenrypted_string,'utf-8',"base64") + cipher.final("base64");
-//     return `${crypted}-${iv.toString('base64')}`;
-// }
+    if (!password_id || !encryption_key || !email) {
+        return res.status(400).json({ error: 'All fields are required.' });
+    }
 
-// function decrypt(encStr, key) {
-//     const algorithm = 'aes-256-ctr';
-//     const encArr = encStr.split('-');
-//     const encKey = crypto.createHash('sha256').update(String(key)).digest('base64').slice(0, 32);
-//     const decipher = crypto.createDecipheriv(algorithm, encKey, Buffer.from(encArr[1], 'base64'));
-//     let decrypted = decipher.update(encArr[0], 'base64', 'utf-8');
-//     decrypted += decipher.final('utf-8');
-//     return decrypted;
-// }
+    try {
+        const userId = req.user.id;
 
-// Helper function to hash strings
-async function hashStr(str) {
-    const salt = await bcrypt.genSalt(10);
-    return bcrypt.hash(str, salt);
-}
+        // Fetch the password record
+        const passwordRecord = await UserPassword.findOne({
+            where: { id: password_id, userId },
+        });
+
+        if (!passwordRecord) {
+            return res.status(400).json({ error: 'Incorrect password_id.' });
+        }
+
+        // Verify encryption key
+        const user = await User.findByPk(userId);
+        const isEncryptionKeyValid = await bcrypt.compare(encryption_key, user.encryption_key);
+        if (!isEncryptionKeyValid) {
+            return res.status(400).json({ error: 'Incorrect encryption key.' });
+        }
+
+        // Find recipient user
+        const recipientUser = await User.findOne({ where: { email } });
+        if (!recipientUser) {
+            return res.status(404).json({ error: 'Recipient user not found.' });
+        }
+
+        // Decrypt password for sharing
+        const decryptedUsername = decryptData(passwordRecord.username, user.encryption_key);
+        const decryptedPassword = decryptData(passwordRecord.password, user.encryption_key);
+
+        // Encrypt password for recipient
+        const encryptedUsername = encryptData(decryptedUsername, recipientUser.encryption_key);
+        const encryptedPassword = encryptData(decryptedPassword, recipientUser.encryption_key);
+
+        // Save shared password record
+        const sharedPassword = await SharedPassword.create({
+            ownerUserId: recipientUser.id,
+            label: passwordRecord.label,
+            url: passwordRecord.url,
+            username: encryptedUsername,
+            password: encryptedPassword,
+            sharedByUserId: userId,
+            weak_encryption: true,
+            source_password_id: password_id,
+            expiry_date: expiry_date ? new Date(expiry_date) : null,
+        });
+
+        return res.status(200).json({ message: 'Password shared successfully.' });
+    } catch (error) {
+        console.error('Error sharing password:', error);
+        return res.status(500).json({
+            error: 'An error occurred while sharing the password. Please try again later.',
+        });
+    }
+});
+
+
+// Helper function to encrypt data using AES-256-GCM
+const encryptData = (text, encryptionKey) => {
+    const iv = crypto.randomBytes(12); // Initialization vector
+    const cipher = crypto.createCipheriv('aes-256-gcm', crypto.createHash('sha256').update(encryptionKey).digest(), iv);
+    let encrypted = cipher.update(text, 'utf8', 'hex');
+    encrypted += cipher.final('hex');
+    const authTag = cipher.getAuthTag().toString('hex');
+    return `${iv.toString('hex')}:${authTag}:${encrypted}`;
+};
+
+// Helper function to decrypt data using AES-256-GCM
+const decryptData = (encryptedData, encryptionKey) => {
+    const [iv, authTag, encrypted] = encryptedData.split(':');
+    const decipher = crypto.createDecipheriv('aes-256-gcm', crypto.createHash('sha256').update(encryptionKey).digest(), Buffer.from(iv, 'hex'));
+    decipher.setAuthTag(Buffer.from(authTag, 'hex'));
+    let decrypted = decipher.update(encrypted, 'hex', 'utf8');
+    decrypted += decipher.final('utf8');
+    return decrypted;
+};
+// Middleware to check for JWT token
+const authenticateToken = (req, res, next) => {
+    const token = req.headers.authorization?.split(' ')[1];
+    if (!token) return res.status(401).json({ error: 'Authorization token is missing.' });
+    jwt.verify(token, process.env.JWT_SECRET, (err, user) => {
+        if (err) return res.status(403).json({ error: 'Invalid token.' });
+        req.user = user; // Attach user to request
+        next();
+    });
+};
+// Rate limit for sharing passwords
+const sharePasswordLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 5, // Limit each IP to 5 requests per windowMs
+    message: 'Too many password share requests from this IP, please try again later.',
+});
 // Start server
 app.listen(port, () => {
     console.log(`Server running on port ${port}`);
