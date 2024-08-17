@@ -1,29 +1,29 @@
-'use strict';
-const { Model, DataTypes } = require('sequelize');
+import { Model, DataTypes } from 'sequelize';
 
-module.exports = (sequelize) => {
-  class UserPassword extends Model {
-    /**
-     * Helper method for defining associations.
-     * This method is not a part of Sequelize lifecycle.
-     * The `models/index` file will call this method automatically.
-     */
-    static associate(models) {
-      // Define association to User model
-      UserPassword.belongsTo(models.User, {
-        foreignKey: 'userId',
-        as: 'user', // Alias for the association
-        onDelete: 'CASCADE', // Action when the associated user is deleted
-      });
+class UserPassword extends Model {
+  /**
+   * Helper method for defining associations.
+   * This method is not a part of Sequelize lifecycle.
+   * The `models/index` file will call this method automatically.
+   */
+  static associate(models) {
+    // Define association to User model
+    UserPassword.belongsTo(models.User, {
+      foreignKey: 'userId',
+      as: 'user', // Alias for the association
+      onDelete: 'CASCADE', // Action when the associated user is deleted
+    });
 
-      // Define association to SharedPassword model
-      UserPassword.hasMany(models.SharedPassword, {
-        foreignKey: 'source_password_id',
-        as: 'sharedPasswords', // Alias for the association
-      });
-    }
+    // Define association to SharedPassword model
+    UserPassword.hasMany(models.SharedPassword, {
+      foreignKey: 'source_password_id',
+      as: 'sharedPasswords', // Alias for the association
+    });
   }
+}
 
+// Initialize the model
+const defineUserPassword = (sequelize) => {
   UserPassword.init({
     userId: {
       type: DataTypes.UUID,
@@ -56,3 +56,5 @@ module.exports = (sequelize) => {
 
   return UserPassword;
 };
+
+export default defineUserPassword;

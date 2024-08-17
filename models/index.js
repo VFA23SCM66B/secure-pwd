@@ -14,7 +14,7 @@ const __dirname = dirname(__filename);
 const db = {};
 const sequelize = new Sequelize(config);
 
-export default (async () => {
+export default async () => {
   try {
     const files = readdirSync(__dirname)
       .filter(
@@ -29,12 +29,12 @@ export default (async () => {
       db[namedModel.name] = namedModel;
     }
 
-    // Comment out or remove the association setup for now
-    // Object.keys(db).forEach((modelName) => {
-    //   if (db[modelName].associate) {
-    //     db[modelName].associate(db);
-    //   }
-    // });
+    // Set up associations
+    Object.keys(db).forEach((modelName) => {
+      if (db[modelName].associate) {
+        db[modelName].associate(db);
+      }
+    });
 
     db.sequelize = sequelize;
     db.Sequelize = Sequelize;
@@ -44,4 +44,4 @@ export default (async () => {
     console.error('Error loading models:', error);
     throw error;
   }
-})();
+};

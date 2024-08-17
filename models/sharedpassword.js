@@ -1,36 +1,36 @@
-'use strict';
-const { Model, DataTypes } = require('sequelize');
+import { Model, DataTypes } from 'sequelize';
 
-module.exports = (sequelize) => {
-  class SharedPassword extends Model {
-    /**
-     * Helper method for defining associations.
-     * This method is not a part of Sequelize lifecycle.
-     * The `models/index` file will call this method automatically.
-     */
-    static associate(models) {
-      // Define association to User model for both ownerUserId and sharedByUserId
-      SharedPassword.belongsTo(models.User, {
-        foreignKey: 'ownerUserId',
-        as: 'ownerUser', // Alias for the association
-        onDelete: 'SET NULL', // Action when the associated owner user is deleted
-      });
+class SharedPassword extends Model {
+  /**
+   * Helper method for defining associations.
+   * This method is not a part of Sequelize lifecycle.
+   * The `models/index` file will call this method automatically.
+   */
+  static associate(models) {
+    // Define association to User model for both ownerUserId and sharedByUserId
+    SharedPassword.belongsTo(models.User, {
+      foreignKey: 'ownerUserId',
+      as: 'ownerUser', // Alias for the association
+      onDelete: 'SET NULL', // Action when the associated owner user is deleted
+    });
 
-      SharedPassword.belongsTo(models.User, {
-        foreignKey: 'sharedByUserId',
-        as: 'sharedByUser', // Alias for the association
-        onDelete: 'SET NULL', // Action when the associated user who shared is deleted
-      });
+    SharedPassword.belongsTo(models.User, {
+      foreignKey: 'sharedByUserId',
+      as: 'sharedByUser', // Alias for the association
+      onDelete: 'SET NULL', // Action when the associated user who shared is deleted
+    });
 
-      // Define association to UserPassword model for source_password_id
-      SharedPassword.belongsTo(models.UserPassword, {
-        foreignKey: 'source_password_id',
-        as: 'sourcePassword', // Alias for the association
-        onDelete: 'SET NULL', // Action when the associated source password is deleted
-      });
-    }
+    // Define association to UserPassword model for source_password_id
+    SharedPassword.belongsTo(models.UserPassword, {
+      foreignKey: 'source_password_id',
+      as: 'sourcePassword', // Alias for the association
+      onDelete: 'SET NULL', // Action when the associated source password is deleted
+    });
   }
+}
 
+// Initialize the model
+const defineSharedPassword = (sequelize) => {
   SharedPassword.init({
     ownerUserId: {
       type: DataTypes.UUID,
@@ -75,3 +75,5 @@ module.exports = (sequelize) => {
 
   return SharedPassword;
 };
+
+export default defineSharedPassword;

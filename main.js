@@ -174,6 +174,16 @@ app.post('/passwords/save', async (req, res) => {
         });
     }
 });
+// Middleware to check for JWT token
+const authenticateToken = (req, res, next) => {
+    const token = req.headers.authorization?.split(' ')[1];
+    if (!token) return res.status(401).json({ error: 'Authorization token is missing.' });
+    jwt.verify(token, process.env.JWT_SECRET, (err, user) => {
+        if (err) return res.status(403).json({ error: 'Invalid token.' });
+        req.user = user; // Attach user to request
+        next();
+    });
+};
 // Password List API
 app.get('/passwords/list', authenticateToken, async (req, res) => {
     const { encryption_key } = req.body;
@@ -249,7 +259,12 @@ app.get('/passwords/list', authenticateToken, async (req, res) => {
         });
     }
 });
-
+// Rate limit for sharing passwords
+const sharePasswordLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 5, // Limit each IP to 5 requests per windowMs
+    message: 'Too many password share requests from this IP, please try again later.',
+});
 app.post('/passwords/share-password', authenticateToken, sharePasswordLimiter, async (req, res) => {
     const { password_id, encryption_key, email, expiry_date } = req.body;
 
@@ -332,22 +347,6 @@ const decryptData = (encryptedData, encryptionKey) => {
     decrypted += decipher.final('utf8');
     return decrypted;
 };
-// Middleware to check for JWT token
-const authenticateToken = (req, res, next) => {
-    const token = req.headers.authorization?.split(' ')[1];
-    if (!token) return res.status(401).json({ error: 'Authorization token is missing.' });
-    jwt.verify(token, process.env.JWT_SECRET, (err, user) => {
-        if (err) return res.status(403).json({ error: 'Invalid token.' });
-        req.user = user; // Attach user to request
-        next();
-    });
-};
-// Rate limit for sharing passwords
-const sharePasswordLimiter = rateLimit({
-    windowMs: 15 * 60 * 1000, // 15 minutes
-    max: 5, // Limit each IP to 5 requests per windowMs
-    message: 'Too many password share requests from this IP, please try again later.',
-});
 // Start server
 app.listen(port, () => {
     console.log(`Server running on port ${port}`);
