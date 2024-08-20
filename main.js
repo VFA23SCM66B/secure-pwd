@@ -301,8 +301,8 @@ app.post('/passwords/share-password', authenticateToken, sharePasswordLimiter, a
         }
 
         // Decrypt password for sharing
-        const decryptedUsername = decryptData(passwordRecord.username, user.encryption_key);
-        const decryptedPassword = decryptData(passwordRecord.password, user.encryption_key);
+        const decryptedUsername = decryptData(passwordRecord.username, encryption_key);
+        const decryptedPassword = decryptData(passwordRecord.password, encryption_key);
 
         // Encrypt password for recipient
         const encryptedUsername = encryptData(decryptedUsername, recipientUser.encryption_key);
