@@ -14,7 +14,7 @@ const __dirname = dirname(__filename);
 const db = {};
 const sequelize = new Sequelize(config);
 
-export default async () => {
+const initializeModels = async () => {
   try {
     const files = readdirSync(__dirname)
       .filter(
@@ -45,3 +45,5 @@ export default async () => {
     throw error;
   }
 };
+
+export default initializeModels;

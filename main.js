@@ -6,11 +6,13 @@ import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
 import { expressjwt } from 'express-jwt';
 import crypto from 'crypto';
-import * as models from './models/index.js';
 import configOptions from './config/config.js';
 import nodemailer from 'nodemailer';
 import rateLimit from 'express-rate-limit';
+import initializeModels from './models/index.js';
 
+const db = await initializeModels();
+const { User, UserPassword, SharedPassword } = db;
 const app = express();
 const environment = process.env.NODE_ENV || 'production';
 const config = configOptions[environment];
