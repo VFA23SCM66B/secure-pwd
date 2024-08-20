@@ -26,7 +26,7 @@ class UserPassword extends Model {
 const defineUserPassword = (sequelize) => {
   UserPassword.init({
     userId: {
-      type: DataTypes.UUID,
+      type: DataTypes.INTEGER,
       allowNull: false, // Ensure userId is always provided
     },
     url: {
