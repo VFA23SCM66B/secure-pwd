@@ -242,6 +242,7 @@ app.get('/passwords/list', authenticateToken, async (req, res) => {
             const isExpired = record.expiry_date && new Date() > new Date(record.expiry_date);
 
             return {
+                id:record.id,
                 url: record.url,
                 username: decryptedUsername,
                 password: decryptedPassword,
@@ -264,13 +265,13 @@ app.get('/passwords/list', authenticateToken, async (req, res) => {
 // Rate limit for sharing passwords
 const sharePasswordLimiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutes
-    max: 5, // Limit each IP to 5 requests per windowMs
+    max: 100, // Limit each IP to 5 requests per windowMs
     message: 'Too many password share requests from this IP, please try again later.',
 });
 app.post('/passwords/share-password', authenticateToken, sharePasswordLimiter, async (req, res) => {
     const { password_id, encryption_key, email, expiry_date } = req.body;
 
-    if (!password_id || !encryption_key || !email) {
+    if (!password_id || !encryption_key || !email || !expiry_date) {
         return res.status(400).json({ error: 'All fields are required.' });
     }
 
