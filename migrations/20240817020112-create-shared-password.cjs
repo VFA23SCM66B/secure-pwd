@@ -10,7 +10,7 @@ module.exports = {
         type: Sequelize.INTEGER
       },
       ownerUserId: {
-        type: Sequelize.UUID
+        type: Sequelize.INTEGER
       },
       label: {
         type: Sequelize.STRING
@@ -25,13 +25,13 @@ module.exports = {
         type: Sequelize.STRING
       },
       sharedByUserId: {
-        type: Sequelize.UUID
+        type: Sequelize.INTEGER
       },
       weak_encryption: {
         type: Sequelize.BOOLEAN
       },
       source_password_id: {
-        type: Sequelize.UUID
+        type: Sequelize.INTEGER
       },
       expiry_date: {
         type: Sequelize.DATE

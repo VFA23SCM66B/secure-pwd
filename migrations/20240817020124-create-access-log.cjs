@@ -13,13 +13,13 @@ module.exports = {
         type: Sequelize.STRING
       },
       userId: {
-        type: Sequelize.UUID
+        type: Sequelize.INTEGER
       },
       recipientUserId: {
-        type: Sequelize.UUID
+        type: Sequelize.INTEGER
       },
       passwordId: {
-        type: Sequelize.UUID
+        type: Sequelize.INTEGER
       },
       timestamp: {
         type: Sequelize.DATE
