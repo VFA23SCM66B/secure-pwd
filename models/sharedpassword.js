@@ -1,11 +1,6 @@
 import { Model, DataTypes } from 'sequelize';
 
 class SharedPassword extends Model {
-  /**
-   * Helper method for defining associations.
-   * This method is not a part of Sequelize lifecycle.
-   * The `models/index` file will call this method automatically.
-   */
   static associate(models) {
     // Define association to User model for both ownerUserId and sharedByUserId
     SharedPassword.belongsTo(models.User, {
@@ -32,36 +27,41 @@ class SharedPassword extends Model {
 // Initialize the model
 const defineSharedPassword = (sequelize) => {
   SharedPassword.init({
+    id: {
+      type: DataTypes.INTEGER,
+      autoIncrement: true,
+      primaryKey: true,
+    },
     ownerUserId: {
-      type: DataTypes.UUID,
+      type: DataTypes.INTEGER,
       allowNull: true,
     },
     label: {
       type: DataTypes.STRING,
-      allowNull: false, // Ensure that label is always provided
+      allowNull: false,
     },
     url: {
       type: DataTypes.STRING,
-      allowNull: false, // Ensure that URL is always provided
+      allowNull: false,
     },
     username: {
       type: DataTypes.STRING,
-      allowNull: false, // Ensure that username is always provided
+      allowNull: false,
     },
     password: {
       type: DataTypes.STRING,
-      allowNull: false, // Ensure that password is always provided
+      allowNull: false,
     },
     sharedByUserId: {
-      type: DataTypes.UUID,
+      type: DataTypes.INTEGER,
       allowNull: true,
     },
     weak_encryption: {
       type: DataTypes.BOOLEAN,
-      defaultValue: false, // Default value for weak_encryption
+      defaultValue: false,
     },
     source_password_id: {
-      type: DataTypes.UUID,
+      type: DataTypes.INTEGER,
       allowNull: true,
     },
     expiry_date: {
