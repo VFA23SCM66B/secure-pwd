@@ -113,6 +113,7 @@ app.post('/login', async (req, res) => {
         return res.status(200).json({
             message: `Hi ${user.name}, you have successfully logged in.`,
             sysMessage: `Welcome back, ${user.name}!`,
+            name:user.name,
             token: token,
         });
     } catch (error) {
@@ -126,7 +127,7 @@ app.post('/login', async (req, res) => {
 // Password Save API
 app.post('/passwords/save', async (req, res) => {
     const { url, username, password, encryption_key, label } = req.body;
-
+    console.log(url +password+username+encryption_key+label);
     try {
         // Validate required fields
         if (!url || !username || !password || !encryption_key || !label) {
