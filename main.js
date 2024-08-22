@@ -131,7 +131,7 @@ app.post('/passwords/save', async (req, res) => {
     console.log(req.body)
     try {
         // Validate required fields
-        if (!url || !username || !password || !encryption_key || !label) {
+        if (!username || !password || !encryption_key || !label) {
             return res.status(400).json({
                 error: 'All fields (url, username, password, encryption_key, label) are required.',
             });
