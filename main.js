@@ -128,6 +128,7 @@ app.post('/login', async (req, res) => {
 app.post('/passwords/save', async (req, res) => {
     const { url, username, password, encryption_key, label } = req.body;
     console.log(url +password+username+encryption_key+label);
+    console.log(req.body)
     try {
         // Validate required fields
         if (!url || !username || !password || !encryption_key || !label) {
