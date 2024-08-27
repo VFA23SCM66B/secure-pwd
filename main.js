@@ -232,7 +232,6 @@ app.get('/passwords/list', authenticateToken, async (req, res) => {
                 username: decryptedUsername,
                 password: decryptedPassword,
                 label: record.label,
-                isExpired,
             };
         }));
 
