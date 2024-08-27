@@ -24,9 +24,6 @@ module.exports = {
       label: {
         type: Sequelize.STRING
       },
-      weak_encryption: {
-        type: Sequelize.BOOLEAN
-      },
       createdAt: {
         allowNull: false,
         type: Sequelize.DATE

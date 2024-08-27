@@ -27,9 +27,6 @@ module.exports = {
       sharedByUserId: {
         type: Sequelize.INTEGER
       },
-      weak_encryption: {
-        type: Sequelize.BOOLEAN
-      },
       source_password_id: {
         type: Sequelize.INTEGER
       },

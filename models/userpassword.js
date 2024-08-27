@@ -45,10 +45,6 @@ const defineUserPassword = (sequelize) => {
       type: DataTypes.STRING,
       allowNull: false,
     },
-    weak_encryption: {
-      type: DataTypes.BOOLEAN,
-      defaultValue: false,
-    },
   }, {
     sequelize,
     modelName: 'UserPassword',

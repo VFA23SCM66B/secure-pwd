@@ -56,10 +56,6 @@ const defineSharedPassword = (sequelize) => {
       type: DataTypes.INTEGER,
       allowNull: true,
     },
-    weak_encryption: {
-      type: DataTypes.BOOLEAN,
-      defaultValue: false,
-    },
     source_password_id: {
       type: DataTypes.INTEGER,
       allowNull: true,

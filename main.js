@@ -127,11 +127,9 @@ app.post('/login', async (req, res) => {
 // Password Save API
 app.post('/passwords/save', async (req, res) => {
     const { url, username, password, encryption_key, label } = req.body;
-    console.log(url +password+username+encryption_key+label);
-    console.log(req.body)
     try {
         // Validate required fields
-        if (!username || !password || !encryption_key || !label) {
+        if (!url || !username || !password || !encryption_key || !label) {
             return res.status(400).json({
                 error: 'All fields (url, username, password, encryption_key, label) are required.',
             });
@@ -220,28 +218,13 @@ app.get('/passwords/list', authenticateToken, async (req, res) => {
         const passwordsArr = await Promise.all(userPasswords.map(async (record) => {
             let decryptedUsername, decryptedPassword;
 
-            if (record.weak_encryption) {
-                // Decrypt with the old key
-                decryptedUsername = decryptData(record.username, user.encryption_key);
-                decryptedPassword = decryptData(record.password, user.encryption_key);
-
-                // Re-encrypt with the new key and update status
-                const newEncryptedUsername = encryptData(decryptedUsername, encryption_key);
-                const newEncryptedPassword = encryptData(decryptedPassword, encryption_key);
-
-                await record.update({
-                    username: newEncryptedUsername,
-                    password: newEncryptedPassword,
-                    weak_encryption: false, // Update encryption status
-                });
-            } else {
                 // Decrypt with the new key
                 decryptedUsername = decryptData(record.username, encryption_key);
                 decryptedPassword = decryptData(record.password, encryption_key);
-            }
+            
 
-            // Check expiry date
-            const isExpired = record.expiry_date && new Date() > new Date(record.expiry_date);
+            // // Check expiry date
+            // const isExpired = record.expiry_date && new Date() > new Date(record.expiry_date);
 
             return {
                 id:record.id,
@@ -328,6 +311,63 @@ app.post('/passwords/share-password', authenticateToken, sharePasswordLimiter, a
         console.error('Error sharing password:', error);
         return res.status(500).json({
             error: 'An error occurred while sharing the password. Please try again later.',
+        });
+    }
+});
+app.get('/shared-passwords/list', authenticateToken, async (req, res) => {
+    const { encryption_key } = req.body;
+
+    if (!encryption_key) {
+        return res.status(400).json({ error: 'Encryption key is required.' });
+    }
+
+    try {
+        const userId = req.user.id;
+
+        // Retrieve the user record based on user ID
+        const user = await User.findByPk(userId);
+        if (!user) {
+            return res.status(404).json({ error: 'User not found.' });
+        }
+
+        // Validate the provided encryption key
+        const isEncryptionKeyValid = await bcrypt.compare(encryption_key, user.encryption_key);
+        if (!isEncryptionKeyValid) {
+            return res.status(400).json({ error: 'Incorrect encryption key.' });
+        }
+
+        // Retrieve shared password records where the user is the owner
+        const sharedPasswords = await SharedPassword.findAll({
+            where: { ownerUserId: userId },
+        });
+
+        // Process and decrypt shared passwords
+        const sharedPasswordsArr = sharedPasswords.map(record => {
+            // Decrypt with the provided encryption key
+            const decryptedUsername = decryptData(record.username, encryption_key);
+            const decryptedPassword = decryptData(record.password, encryption_key);
+
+            // Check expiry date
+            const isExpired = record.expiry_date && new Date() > new Date(record.expiry_date);
+
+            return {
+                id: record.id,
+                url: record.url,
+                username: decryptedUsername,
+                password: decryptedPassword,
+                label: record.label,
+                isExpired,
+            };
+        });
+
+        return res.status(200).json({
+            message: 'Shared passwords retrieved successfully.',
+            sharedPasswords: sharedPasswordsArr,
+        });
+    } catch (error) {
+        console.error('Error retrieving shared passwords:', error);
+        return res.status(500).json({
+            error: 'An error occurred while retrieving shared passwords. Please try again later.',
         });
     }
 });
