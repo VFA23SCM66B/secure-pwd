@@ -343,8 +343,8 @@ app.get('/shared-passwords/list', authenticateToken, async (req, res) => {
         // Process and decrypt shared passwords
         const sharedPasswordsArr = sharedPasswords.map(record => {
             // Decrypt with the provided encryption key
-            const decryptedUsername = decryptData(record.username, encryption_key);
-            const decryptedPassword = decryptData(record.password, encryption_key);
+            const decryptedUsername = decryptData(record.username, user.encryption_key);
+            const decryptedPassword = decryptData(record.password, user.encryption_key);
 
             // Check expiry date
             const isExpired = record.expiry_date && new Date() > new Date(record.expiry_date);
