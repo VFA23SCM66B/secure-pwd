@@ -283,6 +283,10 @@ app.post('/passwords/share-password', authenticateToken, sharePasswordLimiter, a
         if (!recipientUser) {
             return res.status(404).json({ error: 'Recipient user not found.' });
         }
+        // Check if the recipient is the original owner or the one who shared the password
+        if (passwordRecord.userId === recipientUser.id || passwordRecord.sharedByUserId === recipientUser.id) {
+            return res.status(400).json({ error: 'You cannot share the password back to the original owner or the person who shared it with you.' });
+        }
 
         // Decrypt password for sharing
         const decryptedUsername = decryptData(passwordRecord.username, encryption_key);
@@ -348,7 +352,7 @@ app.get('/shared-passwords/list', authenticateToken, async (req, res) => {
 
             // Check expiry date
             const isExpired = record.expiry_date && new Date() > new Date(record.expiry_date);
-
+            console.log(isExpired);
             return {
                 id: record.id,
                 url: record.url,
