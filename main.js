@@ -288,6 +288,18 @@ app.post('/passwords/share-password', authenticateToken, sharePasswordLimiter, a
             return res.status(400).json({ error: 'You cannot share the password back to the original owner or the person who shared it with you.' });
         }
 
+        const existingSharedPassword = await UserPassword.findOne({
+            where: {
+                userId: recipientUser.id,
+                sharedByUserId: userId,
+                source_password_id: password_id,
+            },
+        });
+        
+        if (existingSharedPassword) {
+            return res.status(200).json({ message: 'This password has already been shared with the recipient.' });
+        }
+
         // Decrypt password for sharing
         const decryptedUsername = decryptData(passwordRecord.username, encryption_key);
         const decryptedPassword = decryptData(passwordRecord.password, encryption_key);
