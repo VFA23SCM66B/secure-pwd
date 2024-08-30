@@ -266,11 +266,13 @@ app.post('/passwords/share-password', authenticateToken, sharePasswordLimiter, a
         const passwordRecord = await UserPassword.findOne({
             where: { id: password_id, userId },
         });
-
+        
         if (!passwordRecord) {
             return res.status(400).json({ error: 'Incorrect password_id.' });
         }
-
+        if (passwordRecord.expiry_date && new Date() > new Date(passwordRecord.expiry_date)) {
+            return res.status(400).json({ error: 'This password has already expired and cannot be shared.' });
+        }
         // Verify encryption key
         const user = await User.findByPk(userId);
         const isEncryptionKeyValid = await bcrypt.compare(encryption_key, user.encryption_key);
@@ -285,7 +287,7 @@ app.post('/passwords/share-password', authenticateToken, sharePasswordLimiter, a
         }
         // Check if the recipient is the original owner or the one who shared the password
         if (passwordRecord.userId === recipientUser.id || passwordRecord.sharedByUserId === recipientUser.id) {
-            return res.status(400).json({ error: 'You cannot share the password back to the original owner or the person who shared it with you.' });
+            return res.status(400).json({ error: 'You cannot share the password back to yourself.' });
         }
 
         const existingSharedPassword = await SharedPassword.findOne({
