@@ -270,27 +270,10 @@ app.post('/passwords/share-password', authenticateToken, sharePasswordLimiter, a
         if (!passwordRecord) {
             return res.status(400).json({ error: 'Incorrect password_id.' });
         }
-        console.log(passwordRecord.expiry_date +" " +new Date() + " " +new Date(passwordRecord.expiry_date +" " +(passwordRecord.expiry_date && new Date() > new Date(passwordRecord.expiry_date))));
-        const expiryDate = new Date(passwordRecord.expiry_date);
-        console.log('Parsed expiry date:', expiryDate);
-        console.log('Current Date:', new Date()); // Check current date and time
-        console.log('Expiry Date:', expiryDate); // Compare with expiry date
-        console.log('Is expired:', expiryDate < new Date()); // Check if the expiry date is in the past
-        const expiryDateUTC = new Date(expiryDate.toUTCString());
-        const nowUTC = new Date().toUTCString();
-
-        console.log('Expiry Date (UTC):', expiryDateUTC);
-        console.log('Current Date (UTC):', nowUTC);
-        console.log('Is expired:', expiryDateUTC < new Date());
-        console.log('Expiry Date String:', expiryDateString);
-        console.log('Parsed Date:', expiryDate);
-        console.log('Date Valid:', !isNaN(expiryDate.getTime())); // Check if date is valid
-
-
-
-        if (passwordRecord.expiry_date && new Date() > new Date(passwordRecord.expiry_date)) {
-            return res.status(400).json({ error: 'This password has already expired and cannot be shared.' });
-        }
+        
+        // if (passwordRecord.expiry_date && new Date() > new Date(passwordRecord.expiry_date)) {
+        //     return res.status(400).json({ error: 'This password has already expired and cannot be shared.' });
+        // }
         // Verify encryption key
         const user = await User.findByPk(userId);
         const isEncryptionKeyValid = await bcrypt.compare(encryption_key, user.encryption_key);
@@ -315,11 +298,16 @@ app.post('/passwords/share-password', authenticateToken, sharePasswordLimiter, a
                 source_password_id: password_id,
             },
         });
-        if (passwordRecord.expiry_date && new Date() > new Date(passwordRecord.expiry_date)) {
-            return res.status(400).json({ error: 'This password has already expired and cannot be shared.' });
-        }
+        // if (passwordRecord.expiry_date && new Date() > new Date(passwordRecord.expiry_date)) {
+        //     return res.status(400).json({ error: 'This password has already expired and cannot be shared.' });
+        // }
+        //const isExpired = existingSharedPassword.expiry_date && new Date() > new Date(existingSharedPassword.expiry_date);
         if (existingSharedPassword) {
-            return res.status(200).json({ message: 'This password has already been shared with the recipient.' });
+            const isExpired = existingSharedPassword.expiry_date && new Date() > new Date(existingSharedPassword.expiry_date);
+            if(!isExpired){
+                return res.status(200).json({ message: 'This password has already been shared with the recipient.' });
+            }
+            
         }
 
         // Decrypt password for sharing
