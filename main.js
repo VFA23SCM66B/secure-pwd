@@ -270,6 +270,8 @@ app.post('/passwords/share-password', authenticateToken, sharePasswordLimiter, a
         if (!passwordRecord) {
             return res.status(400).json({ error: 'Incorrect password_id.' });
         }
+        console.log(passwordRecord.expiry_date +" " +new Date() + " " +new Date(passwordRecord.expiry_date +" " +(passwordRecord.expiry_date && new Date() > new Date(passwordRecord.expiry_date))));
+        
         if (passwordRecord.expiry_date && new Date() > new Date(passwordRecord.expiry_date)) {
             return res.status(400).json({ error: 'This password has already expired and cannot be shared.' });
         }
@@ -285,10 +287,10 @@ app.post('/passwords/share-password', authenticateToken, sharePasswordLimiter, a
         if (!recipientUser) {
             return res.status(404).json({ error: 'Recipient user not found.' });
         }
-        // Check if the recipient is the original owner or the one who shared the password
-        if (passwordRecord.userId === recipientUser.id || passwordRecord.sharedByUserId === recipientUser.id) {
-            return res.status(400).json({ error: 'You cannot share the password back to yourself.' });
-        }
+        // // Check if the recipient is the original owner or the one who shared the password
+        // if (passwordRecord.userId === recipientUser.id || passwordRecord.sharedByUserId === recipientUser.id) {
+        //     return res.status(400).json({ error: 'You cannot share the password back to yourself.' });
+        // }
 
         const existingSharedPassword = await SharedPassword.findOne({
             where: {
